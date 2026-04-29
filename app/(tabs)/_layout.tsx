@@ -12,8 +12,8 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.colors.tabInactive,
         tabBarStyle: {
           borderTopColor: theme.colors.border,
-          height: 70,
-          paddingBottom: 12,
+          height: 72,
+          paddingBottom: 10,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
@@ -26,6 +26,13 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="produtos"
+        options={{
+          title: 'Produtos',
+          tabBarIcon: ({ color, size }) => <Ionicons name="cube" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
