@@ -1,4 +1,5 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,8 +14,13 @@ import { Button } from '@/src/components/Button';
 import { Input } from '@/src/components/Input';
 import { LogoProEstoque } from '@/src/components/LogoProEstoque';
 import { theme } from '@/src/constants/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 export default function LoginScreen() {
+  const { isLoading, login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -30,14 +36,18 @@ export default function LoginScreen() {
               icon="mail-outline"
               keyboardType="email-address"
               label="E-mail"
+              onChangeText={setEmail}
               placeholder="joao@email.com"
+              value={email}
             />
             <Input
               autoCapitalize="none"
               icon="lock-closed-outline"
               isPassword
               label="Senha"
+              onChangeText={setSenha}
               placeholder="********"
+              value={senha}
             />
 
             <Link href="./recuperar-senha" asChild>
@@ -46,7 +56,12 @@ export default function LoginScreen() {
               </Pressable>
             </Link>
 
-            <Button fullWidth title="Entrar" onPress={() => router.replace('/(tabs)')} />
+            <Button
+              fullWidth
+              loading={isLoading}
+              title="Entrar"
+              onPress={() => login(email.trim(), senha)}
+            />
           </View>
 
           <View style={styles.footer}>

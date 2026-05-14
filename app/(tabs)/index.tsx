@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -9,12 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { theme } from '@/src/constants/theme';
-import {
-  getStatusEstoque,
-  PRODUTOS_MOCK,
-  USUARIO_MOCK,
-  type StatusEstoque,
-} from '@/src/data/mockData';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { getStatusEstoque, PRODUTOS_MOCK, type StatusEstoque } from '@/src/data/mockData';
 
 type ResumoCard = {
   id: string;
@@ -23,7 +20,16 @@ type ResumoCard = {
 };
 
 export default function HomeScreen() {
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+
+  const saudacao = useMemo(() => {
+    const horaAtual = new Date().getHours();
+
+    if (horaAtual < 12) return 'Bom dia';
+    if (horaAtual < 18) return 'Boa tarde';
+    return 'Boa noite';
+  }, []);
 
   const dataHoje = useMemo(
     () =>
@@ -49,8 +55,7 @@ export default function HomeScreen() {
   );
 
   const valorTotal = useMemo(
-    () =>
-      PRODUTOS_MOCK.reduce((total, produto) => total + produto.preco * produto.estoque, 0),
+    () => PRODUTOS_MOCK.reduce((total, produto) => total + produto.preco * produto.estoque, 0),
     []
   );
 
@@ -81,6 +86,8 @@ export default function HomeScreen() {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 1000);
   }
+
+  const inicialNome = user?.nome?.trim().charAt(0).toUpperCase() ?? 'U';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -122,17 +129,26 @@ export default function HomeScreen() {
         }}
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>Olá, {USUARIO_MOCK.nome}</Text>
-            <Text style={styles.date}>{dataHoje}</Text>
+            <View style={styles.heroHeader}>
+              <View>
+                <Text style={styles.kicker}>{saudacao}</Text>
+                <Text style={styles.title}>Olá, {user?.nome ?? 'Usuário'}</Text>
+                <Text style={styles.date}>{dataHoje}</Text>
+              </View>
+
+              <Pressable style={styles.avatar}>
+                <Text style={styles.avatarText}>{inicialNome}</Text>
+              </Pressable>
+            </View>
 
             <View style={styles.grid}>
               {resumoCards.map((card) => (
                 <View key={card.id} style={styles.summaryCard}>
                   <Text style={styles.summaryLabel}>{card.label}</Text>
                   <Text
-                    numberOfLines={1}
                     adjustsFontSizeToFit
                     minimumFontScale={0.75}
+                    numberOfLines={1}
                     style={styles.summaryValue}>
                     {card.value}
                   </Text>
@@ -219,6 +235,19 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption,
     fontWeight: '800',
   },
+  avatar: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.pill,
+    height: 52,
+    justifyContent: 'center',
+    width: 52,
+  },
+  avatarText: {
+    color: theme.colors.white,
+    fontSize: theme.typography.subtitle,
+    fontWeight: '800',
+  },
   badge: {
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.sm,
@@ -261,6 +290,17 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     marginBottom: theme.spacing.xl,
     marginTop: theme.spacing.xl,
+  },
+  heroHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  kicker: {
+    color: theme.colors.info,
+    fontSize: theme.typography.caption,
+    fontWeight: '700',
+    marginBottom: theme.spacing.xs,
   },
   productCard: {
     backgroundColor: theme.colors.surface,

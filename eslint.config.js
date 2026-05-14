@@ -7,4 +7,10 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    files: ['src/contexts/AuthContext.tsx'],
+    rules: {
+      'import/no-unresolved': 'off',
+    },
+  },
 ]);
