@@ -1,18 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { theme } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 
 export default function ConfiguracoesScreen() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const initial = user?.nome?.trim().charAt(0).toUpperCase() ?? 'U';
 
+  async function confirmLogout() {
+    await logout();
+    router.replace('/login' as never);
+  }
+
   function handleLogout() {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Tem certeza que deseja encerrar sua sessão?');
+
+      if (confirmed) {
+        void confirmLogout();
+      }
+
+      return;
+    }
+
     Alert.alert('Sair da conta', 'Tem certeza que deseja encerrar sua sessão?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: () => logout() },
+      {
+        text: 'Sair',
+        style: 'destructive',
+        onPress: () => void confirmLogout(),
+      },
     ]);
   }
 
@@ -37,7 +58,7 @@ export default function ConfiguracoesScreen() {
           <MenuItem icon="help-circle-outline" label="Ajuda" />
         </View>
 
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
+        <Pressable onPress={handleLogout} style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutPressed]}>
           <Ionicons name="log-out-outline" size={20} color={theme.colors.white} />
           <Text style={styles.logoutText}>Sair da conta</Text>
         </Pressable>
@@ -97,6 +118,9 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: theme.typography.body,
     fontWeight: '800',
+  },
+  logoutPressed: {
+    opacity: 0.88,
   },
   menuCard: {
     backgroundColor: theme.colors.surface,
