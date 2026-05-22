@@ -1,17 +1,11 @@
 import { useMemo, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { theme } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { getStatusEstoque, PRODUTOS_MOCK, type StatusEstoque } from '@/src/data/mockData';
+import { useProducts } from '@/src/contexts/ProductsContext';
+import { getCategoriaNome, getStatusEstoque, type StatusEstoque } from '@/src/data/mockData';
 
 type ResumoCard = {
   id: string;
@@ -21,6 +15,7 @@ type ResumoCard = {
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { produtos } = useProducts();
   const [refreshing, setRefreshing] = useState(false);
 
   const saudacao = useMemo(() => {
@@ -43,30 +38,33 @@ export default function HomeScreen() {
 
   const produtosRecentes = useMemo(
     () =>
-      [...PRODUTOS_MOCK].sort(
+      [...produtos].sort(
         (a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime()
       ),
-    []
+    [produtos]
   );
 
   const produtosCriticos = useMemo(
-    () => PRODUTOS_MOCK.filter((produto) => getStatusEstoque(produto.estoque) !== 'Normal'),
-    []
+    () =>
+      produtos.filter(
+        (produto) => getStatusEstoque(produto.quantidade, produto.quantidadeMinima) !== 'Normal'
+      ),
+    [produtos]
   );
 
   const valorTotal = useMemo(
-    () => PRODUTOS_MOCK.reduce((total, produto) => total + produto.preco * produto.estoque, 0),
-    []
+    () => produtos.reduce((total, produto) => total + produto.preco * produto.quantidade, 0),
+    [produtos]
   );
 
   const categoriasTotal = useMemo(
-    () => new Set(PRODUTOS_MOCK.map((produto) => produto.categoria)).size,
-    []
+    () => new Set(produtos.map((produto) => produto.categoriaId)).size,
+    [produtos]
   );
 
   const resumoCards: ResumoCard[] = useMemo(
     () => [
-      { id: 'total', label: 'Total', value: `${PRODUTOS_MOCK.length}` },
+      { id: 'total', label: 'Total', value: `${produtos.length}` },
       { id: 'alertas', label: 'Alertas', value: `${produtosCriticos.length}` },
       { id: 'categorias', label: 'Categorias', value: `${categoriasTotal}` },
       {
@@ -79,7 +77,7 @@ export default function HomeScreen() {
         }),
       },
     ],
-    [categoriasTotal, produtosCriticos.length, valorTotal]
+    [categoriasTotal, produtos.length, produtosCriticos.length, valorTotal]
   );
 
   function onRefresh() {
@@ -103,20 +101,22 @@ export default function HomeScreen() {
           />
         }
         renderItem={({ item }) => {
-          const status = getStatusEstoque(item.estoque);
+          const status = getStatusEstoque(item.quantidade, item.quantidadeMinima);
 
           return (
             <View style={styles.productCard}>
               <View style={styles.productHeader}>
                 <View>
                   <Text style={styles.productName}>{item.nome}</Text>
-                  <Text style={styles.productCategory}>{item.categoria}</Text>
+                  <Text style={styles.productCategory}>{getCategoriaNome(item.categoriaId)}</Text>
                 </View>
                 <StatusBadge status={status} />
               </View>
 
               <View style={styles.productFooter}>
-                <Text style={styles.productMeta}>Estoque: {item.estoque}</Text>
+                <Text style={styles.productMeta}>
+                  Estoque: {item.quantidade} {item.unidade}
+                </Text>
                 <Text style={styles.productPrice}>
                   {item.preco.toLocaleString('pt-BR', {
                     style: 'currency',
@@ -163,9 +163,13 @@ export default function HomeScreen() {
                   <View key={produto.id} style={styles.alertItem}>
                     <View>
                       <Text style={styles.alertName}>{produto.nome}</Text>
-                      <Text style={styles.alertCategory}>{produto.categoria}</Text>
+                      <Text style={styles.alertCategory}>
+                        {getCategoriaNome(produto.categoriaId)}
+                      </Text>
                     </View>
-                    <Text style={styles.alertStock}>{produto.estoque} un.</Text>
+                    <Text style={styles.alertStock}>
+                      {produto.quantidade} {produto.unidade}
+                    </Text>
                   </View>
                 ))}
               </View>
