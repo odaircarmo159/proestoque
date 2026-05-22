@@ -7,7 +7,7 @@ type ButtonProps = {
   onPress?: () => void;
   loading?: boolean;
   fullWidth?: boolean;
-  variant?: 'primary' | 'outline';
+  variant?: 'primary' | 'outline' | 'danger';
   style?: ViewStyle;
 };
 
@@ -20,6 +20,7 @@ export function Button({
   style,
 }: ButtonProps) {
   const isOutline = variant === 'outline';
+  const isDanger = variant === 'danger';
 
   return (
     <Pressable
@@ -30,12 +31,15 @@ export function Button({
         styles.button,
         fullWidth && styles.fullWidth,
         isOutline && styles.outline,
+        isDanger && styles.danger,
         pressed && styles.pressed,
         loading && styles.disabled,
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator color={isOutline ? theme.colors.primary : theme.colors.white} />
+        <ActivityIndicator
+          color={isOutline ? theme.colors.primary : theme.colors.white}
+        />
       ) : (
         <Text style={[styles.title, isOutline && styles.outlineTitle]}>{title}</Text>
       )}
@@ -55,6 +59,9 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.75,
+  },
+  danger: {
+    backgroundColor: theme.colors.error,
   },
   fullWidth: {
     alignSelf: 'stretch',

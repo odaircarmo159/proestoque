@@ -6,12 +6,15 @@ import { StyleSheet, View } from 'react-native';
 import { SplashScreen } from '@/src/components/SplashScreen';
 import { theme } from '@/src/constants/theme';
 import { AuthProvider, useAuth } from '@/src/contexts/AuthContext';
+import { ProductsProvider } from '@/src/contexts/ProductsContext';
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <NavigationGuard />
-      <StatusBar style="dark" />
+      <ProductsProvider>
+        <NavigationGuard />
+        <StatusBar style="dark" />
+      </ProductsProvider>
     </AuthProvider>
   );
 }
