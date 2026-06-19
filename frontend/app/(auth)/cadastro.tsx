@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -23,21 +24,22 @@ export default function CadastroScreen() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [erro, setErro] = useState<string | null>(null);
 
   const senhasDiferentes = confirmarSenha.length > 0 && senha !== confirmarSenha;
 
   async function handleCriarConta() {
     if (senhasDiferentes) {
-      setErro('As senhas não coincidem.');
+      Alert.alert('Senha inválida', 'As senhas não coincidem.');
       return;
     }
 
     try {
-      setErro(null);
       await registrar(nome, email, senha);
     } catch (error) {
-      setErro(error instanceof Error ? error.message : 'Não foi possível criar a conta.');
+      Alert.alert(
+        'Erro ao criar conta',
+        error instanceof Error ? error.message : 'Não foi possível criar a conta.'
+      );
     }
   }
 
@@ -94,9 +96,6 @@ export default function CadastroScreen() {
               placeholder="********"
               value={confirmarSenha}
             />
-
-            {erro ? <Text style={styles.errorText}>{erro}</Text> : null}
-
             <Button
               fullWidth
               loading={isLoading}
@@ -124,12 +123,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: theme.spacing.lg,
-  },
-  errorText: {
-    color: theme.colors.error,
-    fontSize: theme.typography.small,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   footer: {
     alignItems: 'center',

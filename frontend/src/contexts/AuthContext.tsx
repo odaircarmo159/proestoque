@@ -1,5 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { isAxiosError } from 'axios';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 import { api, getApiErrorMessage, setAuthToken, setUnauthorizedHandler } from '@/src/services/api';
 
@@ -58,15 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]);
 
         if (storedToken && storedUser) {
-          const parsedUser = JSON.parse(storedUser) as User;
           setAuthToken(storedToken);
 
           try {
             const response = await api.get<User>('/auth/me');
             const restoredUser = response.data;
             await persistSession(storedToken, restoredUser);
-          } catch {
-            await persistSession(storedToken, parsedUser);
+          } catch (error) {
+            if (isAxiosError(error) && error.response?.status === 401) {
+              await clearSession();
+            } else {
+              const parsedUser = JSON.parse(storedUser) as User;
+              await persistSession(storedToken, parsedUser);
+            }
           }
         }
       } finally {
@@ -87,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function login(email: string, password: string) {
+  const login = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
 
     try {
@@ -102,9 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
-  async function registrar(nome: string, email: string, password: string) {
+  const registrar = useCallback(async (nome: string, email: string, password: string) => {
     setIsLoading(true);
 
     try {
@@ -120,9 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
-  async function logout() {
+  const logout = useCallback(async () => {
     setIsLoading(true);
 
     try {
@@ -130,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
   const value = useMemo<AuthContextType>(
     () => ({
@@ -142,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       registrar,
       logout,
     }),
-    [isLoading, token, user]
+    [isLoading, login, logout, registrar, token, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

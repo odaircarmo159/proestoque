@@ -1,14 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { create, isAxiosError } from 'axios';
+import Constants from 'expo-constants';
 
 const AUTH_TOKEN_KEY = '@proestoque:token';
 
-const baseURL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3333/api').replace(/\/$/, '');
+const baseURL = (
+  (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
+  process.env.EXPO_PUBLIC_API_URL ??
+  'http://localhost:3333/api'
+).replace(/\/$/, '');
 
 let authToken: string | null = null;
 let unauthorizedHandler: null | (() => void | Promise<void>) = null;
 
-export const api = axios.create({
+export const api = create({
   baseURL,
   timeout: 10000,
   headers: {
@@ -29,7 +34,7 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401 && unauthorizedHandler) {
+    if (isAxiosError(error) && error.response?.status === 401 && unauthorizedHandler) {
       await unauthorizedHandler();
     }
 
@@ -46,11 +51,19 @@ export function setUnauthorizedHandler(handler: null | (() => void | Promise<voi
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string) {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const apiMessage = error.response?.data?.erro;
 
     if (typeof apiMessage === 'string' && apiMessage.trim().length > 0) {
       return apiMessage;
+    }
+
+    if (error.code === 'ECONNABORTED') {
+      return 'Tempo de resposta esgotado. Tente novamente.';
+    }
+
+    if (error.message === 'Network Error') {
+      return 'Erro de conexão. Verifique a API e sua rede Wi-Fi.';
     }
   }
 
