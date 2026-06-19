@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CATEGORIA_IDS, UNIDADES_PRODUTO } from '@/src/data/mockData';
+import { UNIDADES_PRODUTO } from '@/src/types/produto';
 
 function parseNumber(value: unknown) {
   if (value === '' || value === null || value === undefined) {
@@ -37,9 +37,7 @@ export const produtoSchema = z.object({
     .trim()
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(80, 'Nome muito longo'),
-  categoriaId: z.enum(CATEGORIA_IDS, {
-    message: 'Selecione uma categoria',
-  }),
+  categoriaId: z.string().trim().min(1, 'Selecione uma categoria'),
   quantidade: inteiroNaoNegativo('Informe a quantidade', 'Quantidade deve ser um número inteiro'),
   quantidadeMinima: inteiroNaoNegativo(
     'Informe a quantidade mínima',

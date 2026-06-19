@@ -1,37 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ErrorView } from '@/src/components/ErrorView';
+import { LoadingView } from '@/src/components/LoadingView';
 import { theme } from '@/src/constants/theme';
-import {
-  CATEGORIAS_MOCK,
-  getCategoriaNome,
-  getStatusEstoque,
-  type CategoriaProdutoId,
-} from '@/src/data/mockData';
 import { useProducts } from '@/src/contexts/ProductsContext';
+import { useCategorias } from '@/src/hooks/useCategorias';
+import { getStatusEstoque } from '@/src/utils/produtos';
 
-type CategoriaFiltro = CategoriaProdutoId | 'todas';
+type CategoriaFiltro = string | 'todas';
 
 export default function ListaProdutosScreen() {
-  const { produtos } = useProducts();
+  const { produtos, isLoading, error, carregarProdutos } = useProducts();
+  const { categorias, isLoading: loadingCategorias } = useCategorias();
   const [busca, setBusca] = useState('');
   const [categoriaAtiva, setCategoriaAtiva] = useState<CategoriaFiltro>('todas');
+  const [refreshing, setRefreshing] = useState(false);
 
   const produtosFiltrados = useMemo(() => {
     const termo = busca.toLowerCase().trim();
 
     return produtos.filter((produto) => {
-      const buscaOk =
-        termo.length === 0 || produto.nome.toLowerCase().includes(termo);
-      const categoriaOk =
-        categoriaAtiva === 'todas' ? true : produto.categoriaId === categoriaAtiva;
+      const buscaOk = termo.length === 0 || produto.nome.toLowerCase().includes(termo);
+      const categoriaOk = categoriaAtiva === 'todas' || produto.categoriaId === categoriaAtiva;
 
       return buscaOk && categoriaOk;
     });
   }, [busca, categoriaAtiva, produtos]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+
+    try {
+      await carregarProdutos();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [carregarProdutos]);
+
+  if (isLoading && produtos.length === 0) {
+    return <LoadingView mensagem="Carregando produtos..." />;
+  }
+
+  if (error && produtos.length === 0) {
+    return <ErrorView mensagem={error} onRetry={() => carregarProdutos().catch(() => undefined)} />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,7 +72,7 @@ export default function ListaProdutosScreen() {
 
         <FlatList
           contentContainerStyle={styles.chipsContent}
-          data={[{ id: 'todas', nome: 'Todos' }, ...CATEGORIAS_MOCK]}
+          data={[{ id: 'todas', nome: 'Todos' }, ...categorias]}
           horizontal
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
@@ -67,6 +91,8 @@ export default function ListaProdutosScreen() {
           showsHorizontalScrollIndicator={false}
         />
 
+        {loadingCategorias ? <Text style={styles.helper}>Carregando categorias...</Text> : null}
+
         <FlatList
           contentContainerStyle={styles.listContent}
           data={produtosFiltrados}
@@ -76,6 +102,13 @@ export default function ListaProdutosScreen() {
               <Text style={styles.emptyTitle}>Nenhum produto encontrado</Text>
               <Text style={styles.emptySubtitle}>Tente ajustar a busca ou o filtro.</Text>
             </View>
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primary}
+            />
           }
           renderItem={({ item }) => {
             const status = getStatusEstoque(item.quantidade, item.quantidadeMinima);
@@ -107,7 +140,7 @@ export default function ListaProdutosScreen() {
                     ]}>
                     {status}
                   </Text>
-                  <Text style={styles.categoryText}>{getCategoriaNome(item.categoriaId)}</Text>
+                  <Text style={styles.categoryText}>{item.categoria?.nome ?? 'Categoria'}</Text>
                 </View>
               </Pressable>
             );
@@ -132,13 +165,16 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   chip: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
     marginRight: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
   },
   chipSelected: {
     backgroundColor: theme.colors.primary,
@@ -153,6 +189,7 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
   },
   chipsContent: {
+    alignItems: 'center',
     paddingBottom: theme.spacing.md,
   },
   container: {
@@ -189,6 +226,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: theme.spacing.lg,
     width: 58,
+  },
+  helper: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.small,
+    marginBottom: theme.spacing.sm,
   },
   listContent: {
     paddingBottom: 110,

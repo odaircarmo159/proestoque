@@ -6,19 +6,14 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Button } from '@/src/components/Button';
 import { Input } from '@/src/components/Input';
 import { theme } from '@/src/constants/theme';
-import {
-  CATEGORIAS_MOCK,
-  type CategoriaProdutoId,
-  type Produto,
-  type UnidadeProduto,
-} from '@/src/data/mockData';
+import { useCategorias } from '@/src/hooks/useCategorias';
 import {
   produtoSchema,
   type ProdutoFormData,
   type ProdutoFormValues,
 } from '@/src/schemas/produtoSchema';
-
-const UNIDADES: UnidadeProduto[] = ['un', 'cx', 'kg', 'pct', 'g'];
+import type { Produto } from '@/src/types/produto';
+import { UNIDADES_PRODUTO } from '@/src/types/produto';
 
 type ProdutoFormProps = {
   produto?: Produto;
@@ -28,7 +23,7 @@ type ProdutoFormProps = {
 
 const DEFAULT_VALUES: ProdutoFormValues = {
   nome: '',
-  categoriaId: 'bebidas',
+  categoriaId: '',
   quantidade: 0,
   quantidadeMinima: 0,
   preco: 0,
@@ -38,9 +33,11 @@ const DEFAULT_VALUES: ProdutoFormValues = {
 
 export function ProdutoForm({ produto, onSubmit, onDelete }: ProdutoFormProps) {
   const modoEdicao = Boolean(produto);
+  const { categorias, isLoading: loadingCategorias } = useCategorias();
 
   const {
     control,
+    setValue,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
@@ -65,6 +62,17 @@ export function ProdutoForm({ produto, onSubmit, onDelete }: ProdutoFormProps) {
       observacao: produto.observacao ?? '',
     });
   }, [produto, reset]);
+
+  useEffect(() => {
+    if (produto || categorias.length === 0) {
+      return;
+    }
+
+    setValue('categoriaId', categorias[0].id, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+  }, [categorias, produto, setValue]);
 
   function handleDelete() {
     if (!onDelete) {
@@ -110,13 +118,14 @@ export function ProdutoForm({ produto, onSubmit, onDelete }: ProdutoFormProps) {
           <View style={styles.field}>
             <Text style={styles.label}>Categoria *</Text>
             <View style={styles.chipsRow}>
-              {CATEGORIAS_MOCK.map((categoria) => {
+              {categorias.map((categoria) => {
                 const selected = categoria.id === value;
 
                 return (
                   <Pressable
                     key={categoria.id}
-                    onPress={() => onChange(categoria.id as CategoriaProdutoId)}
+                    disabled={loadingCategorias}
+                    onPress={() => onChange(categoria.id)}
                     style={[styles.chip, selected && styles.chipSelected]}>
                     <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                       {categoria.nome}
@@ -125,6 +134,7 @@ export function ProdutoForm({ produto, onSubmit, onDelete }: ProdutoFormProps) {
                 );
               })}
             </View>
+            {loadingCategorias ? <Text style={styles.helper}>Carregando categorias...</Text> : null}
             {errors.categoriaId?.message ? (
               <Text style={styles.error}>{errors.categoriaId.message}</Text>
             ) : null}
@@ -187,7 +197,7 @@ export function ProdutoForm({ produto, onSubmit, onDelete }: ProdutoFormProps) {
           <View style={styles.field}>
             <Text style={styles.label}>Unidade *</Text>
             <View style={styles.chipsRow}>
-              {UNIDADES.map((unidade) => {
+              {UNIDADES_PRODUTO.map((unidade) => {
                 const selected = unidade === value;
 
                 return (
@@ -281,6 +291,11 @@ const styles = StyleSheet.create({
   },
   field: {
     marginBottom: theme.spacing.xs,
+  },
+  helper: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.small,
+    marginTop: theme.spacing.xs,
   },
   label: {
     color: theme.colors.text,

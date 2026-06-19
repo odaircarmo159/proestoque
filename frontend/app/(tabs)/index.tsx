@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ErrorView } from '@/src/components/ErrorView';
+import { LoadingView } from '@/src/components/LoadingView';
 import { theme } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useProducts } from '@/src/contexts/ProductsContext';
-import { getCategoriaNome, getStatusEstoque, type StatusEstoque } from '@/src/data/mockData';
+import type { StatusEstoque } from '@/src/types/produto';
+import { formatarPreco } from '@/src/utils/formatters';
+import { getStatusEstoque } from '@/src/utils/produtos';
 
 type ResumoCard = {
   id: string;
@@ -15,7 +19,7 @@ type ResumoCard = {
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { produtos } = useProducts();
+  const { produtos, isLoading, error, carregarProdutos } = useProducts();
   const [refreshing, setRefreshing] = useState(false);
 
   const saudacao = useMemo(() => {
@@ -67,22 +71,27 @@ export default function HomeScreen() {
       { id: 'total', label: 'Total', value: `${produtos.length}` },
       { id: 'alertas', label: 'Alertas', value: `${produtosCriticos.length}` },
       { id: 'categorias', label: 'Categorias', value: `${categoriasTotal}` },
-      {
-        id: 'valor',
-        label: 'Valor',
-        value: valorTotal.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-          maximumFractionDigits: 0,
-        }),
-      },
+      { id: 'valor', label: 'Valor', value: formatarPreco(valorTotal) },
     ],
     [categoriasTotal, produtos.length, produtosCriticos.length, valorTotal]
   );
 
-  function onRefresh() {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+
+    try {
+      await carregarProdutos();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [carregarProdutos]);
+
+  if (isLoading && produtos.length === 0) {
+    return <LoadingView mensagem="Carregando dashboard..." />;
+  }
+
+  if (error && produtos.length === 0) {
+    return <ErrorView mensagem={error} onRetry={() => carregarProdutos().catch(() => undefined)} />;
   }
 
   const inicialNome = user?.nome?.trim().charAt(0).toUpperCase() ?? 'U';
@@ -108,7 +117,7 @@ export default function HomeScreen() {
               <View style={styles.productHeader}>
                 <View>
                   <Text style={styles.productName}>{item.nome}</Text>
-                  <Text style={styles.productCategory}>{getCategoriaNome(item.categoriaId)}</Text>
+                  <Text style={styles.productCategory}>{item.categoria?.nome ?? 'Categoria'}</Text>
                 </View>
                 <StatusBadge status={status} />
               </View>
@@ -117,12 +126,7 @@ export default function HomeScreen() {
                 <Text style={styles.productMeta}>
                   Estoque: {item.quantidade} {item.unidade}
                 </Text>
-                <Text style={styles.productPrice}>
-                  {item.preco.toLocaleString('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  })}
-                </Text>
+                <Text style={styles.productPrice}>{formatarPreco(item.preco)}</Text>
               </View>
             </View>
           );
@@ -164,7 +168,7 @@ export default function HomeScreen() {
                     <View>
                       <Text style={styles.alertName}>{produto.nome}</Text>
                       <Text style={styles.alertCategory}>
-                        {getCategoriaNome(produto.categoriaId)}
+                        {produto.categoria?.nome ?? 'Categoria'}
                       </Text>
                     </View>
                     <Text style={styles.alertStock}>
@@ -271,7 +275,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: theme.typography.small,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   badgeWarning: {
     backgroundColor: theme.colors.warningLight,
@@ -293,18 +297,17 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: theme.spacing.md,
     marginBottom: theme.spacing.xl,
-    marginTop: theme.spacing.xl,
   },
   heroHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: theme.spacing.xl,
   },
   kicker: {
-    color: theme.colors.info,
+    color: theme.colors.primary,
     fontSize: theme.typography.caption,
     fontWeight: '700',
-    marginBottom: theme.spacing.xs,
   },
   productCard: {
     backgroundColor: theme.colors.surface,
@@ -320,13 +323,11 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   productFooter: {
-    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: theme.spacing.md,
   },
   productHeader: {
-    alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -337,11 +338,10 @@ const styles = StyleSheet.create({
   productName: {
     color: theme.colors.text,
     fontSize: theme.typography.body,
-    fontWeight: '700',
-    maxWidth: 210,
+    fontWeight: '800',
   },
   productPrice: {
-    color: theme.colors.primary,
+    color: theme.colors.text,
     fontSize: theme.typography.caption,
     fontWeight: '800',
   },
@@ -360,24 +360,24 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    minHeight: 110,
+    flexGrow: 1,
+    minWidth: '47%',
     padding: theme.spacing.md,
-    width: '47.5%',
   },
   summaryLabel: {
     color: theme.colors.muted,
-    fontSize: theme.typography.caption,
-    fontWeight: '600',
+    fontSize: theme.typography.small,
   },
   summaryValue: {
-    color: theme.colors.primary,
-    fontSize: 26,
+    color: theme.colors.text,
+    fontSize: theme.typography.subtitle,
     fontWeight: '800',
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.sm,
   },
   title: {
     color: theme.colors.text,
     fontSize: theme.typography.title,
     fontWeight: '800',
+    marginTop: theme.spacing.xs,
   },
 });
